@@ -39,6 +39,7 @@ import Hydra.Chain.Direct (
 import Hydra.Chain.Direct.Handlers (DirectChainLog)
 import Hydra.Cluster.Faucet (
   Marked (Fuel, Normal),
+  publishHydraScripts,
   seedFromFaucet,
   seedFromFaucet_,
  )
@@ -66,15 +67,16 @@ spec = around showLogsOnFailure $ do
     bobsCallback <- newEmptyMVar
     withTempDir "hydra-cluster" $ \tmp -> do
       config <- newNodeConfig tmp
-      aliceKeys@(aliceCardanoVk, _) <- keysFor Alice
+      aliceKeys@(aliceCardanoVk, aliceCardanoSk) <- keysFor Alice
       withCardanoNodeDevnet (contramap FromNode tracer) config $ \node@(RunningNode _ nodeSocket) -> do
         bobKeys <- keysFor Bob
         cardanoKeys <- fmap fst <$> mapM keysFor [Alice, Bob, Carol]
         withIOManager $ \iocp -> do
-          withDirectChain (contramap (FromDirectChain "alice") tracer) defaultNetworkId iocp nodeSocket aliceKeys alice cardanoKeys Nothing (putMVar alicesCallback) $ \Chain{postTx} -> do
+          seedFromFaucet_ defaultNetworkId node aliceCardanoVk 100_000_000 Fuel
+          _publishingTx <- publishHydraScripts node aliceCardanoSk
+          let aliceTracer = contramap (FromDirectChain "alice") tracer
+          withDirectChain aliceTracer defaultNetworkId iocp nodeSocket aliceKeys alice cardanoKeys Nothing (putMVar alicesCallback) $ \Chain{postTx} -> do
             withDirectChain nullTracer defaultNetworkId iocp nodeSocket bobKeys bob cardanoKeys Nothing (putMVar bobsCallback) $ \_ -> do
-              seedFromFaucet_ defaultNetworkId node aliceCardanoVk 100_000_000 Fuel
-
               postTx $ InitTx $ HeadParameters cperiod [alice, bob, carol]
               alicesCallback `observesInTime` OnInitTx cperiod [alice, bob, carol]
               bobsCallback `observesInTime` OnInitTx cperiod [alice, bob, carol]
