@@ -211,7 +211,7 @@ waitForUTxO networkId nodeSocket utxo =
  where
   forEachUTxO :: TxOut CtxUTxO -> IO ()
   forEachUTxO = \case
-    TxOut (ShelleyAddressInEra addr@ShelleyAddress{}) value _ -> do
+    TxOut (ShelleyAddressInEra addr@ShelleyAddress{}) value _ _ -> do
       void $
         waitForPayment
           networkId
@@ -269,6 +269,7 @@ mkGenesisTx networkId pparams signingKey initialAmount recipients =
       changeAddr
       (lovelaceToValue $ initialAmount - totalSent - fee)
       TxOutDatumNone
+      ReferenceScriptNone
 
   recipientOutputs =
     flip map recipients $ \(vk, ll) ->
@@ -276,3 +277,4 @@ mkGenesisTx networkId pparams signingKey initialAmount recipients =
         (mkVkAddress networkId vk)
         (lovelaceToValue ll)
         TxOutDatumNone
+        ReferenceScriptNone

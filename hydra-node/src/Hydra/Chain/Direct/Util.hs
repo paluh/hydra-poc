@@ -206,5 +206,5 @@ markerDatumHash =
 -- | Determine whether a 'TxOut' is marked to be used for paying Hydra Head transactions
 isMarkedOutput :: TxOut CtxUTxO -> Bool
 isMarkedOutput = \case
-  (TxOut _ _ (TxOutDatumHash ha)) -> ha == markerDatumHash
+  (TxOut _ _ (TxOutDatumHash ha) _) -> ha == markerDatumHash
   _ -> False
