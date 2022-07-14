@@ -119,7 +119,8 @@ genStIdle ctx@HydraContext{ctxVerificationKeys, ctxNetworkId} = do
   ownParty <- elements (ctxParties ctx)
   ownVerificationKey <- elements ctxVerificationKeys
   let peerVerificationKeys = ctxVerificationKeys \\ [ownVerificationKey]
-  pure $ idleOnChainHeadState ctxNetworkId peerVerificationKeys ownVerificationKey ownParty
+  referenceScriptsUTxO <- genReferenceScripts
+  pure $ idleOnChainHeadState ctxNetworkId peerVerificationKeys ownVerificationKey ownParty referenceScriptsUTxO
 
 genStInitialized ::
   HydraContext ->
@@ -145,7 +146,8 @@ genCommits ::
 genCommits ctx initTx = do
   forM (zip (ctxVerificationKeys ctx) (ctxParties ctx)) $ \(vk, p) -> do
     let peerVerificationKeys = ctxVerificationKeys ctx \\ [vk]
-    let stIdle = idleOnChainHeadState (ctxNetworkId ctx) peerVerificationKeys vk p
+    referenceScriptsUTxO <- genReferenceScripts
+    let stIdle = idleOnChainHeadState (ctxNetworkId ctx) peerVerificationKeys vk p referenceScriptsUTxO
     let (_, stInitialized) = unsafeObserveTx @_ @ 'StInitialized initTx stIdle
     utxo <- genCommit
     pure $ unsafeCommit utxo stInitialized
