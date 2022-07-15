@@ -52,8 +52,6 @@ import Hydra.Cardano.Api (
   SigningKey,
   Tx,
   TxId,
-  TxIn (..),
-  TxIx (..),
   VerificationKey,
   fromConsensusPointHF,
   shelleyBasedEra,
@@ -67,13 +65,12 @@ import Hydra.Chain (
   PostTxError (..),
  )
 import Hydra.Chain.CardanoClient (
-  QueryPoint (QueryAt, QueryTip),
+  QueryPoint (QueryAt),
   queryEraHistory,
   queryProtocolParameters,
   querySystemStart,
   queryTip,
   queryUTxO,
-  queryUTxOByTxIn,
  )
 import Hydra.Chain.Direct.Handlers (
   ChainSyncHandler,
@@ -86,6 +83,7 @@ import Hydra.Chain.Direct.Handlers (
   onRollBackward,
   onRollForward,
  )
+import Hydra.Chain.Direct.ScriptRegistry (queryScriptRegistry)
 import Hydra.Chain.Direct.State (
   SomeOnChainHeadState (..),
   idleOnChainHeadState,
@@ -170,15 +168,13 @@ withDirectChain tracer networkId iocp socketPath keyPair party cardanoKeys point
   queue <- newTQueueIO
   wallet <- newTinyWallet (contramap Wallet tracer) networkId keyPair queryUTxOEtc
   let (vk, _) = keyPair
-  -- XXX: DRY expected reference scripts [TxIn] with Chain.Direct.Tx module
-  referenceScriptsUTxO <-
-    queryUTxOByTxIn networkId socketPath QueryTip [TxIn hydraScriptsTxId (TxIx 1)]
+  scriptRegistry <- queryScriptRegistry networkId socketPath hydraScriptsTxId
   headState <-
     newTVarIO $
       SomeOnChainHeadStateAt
         { currentOnChainHeadState =
             SomeOnChainHeadState $
-              idleOnChainHeadState networkId (cardanoKeys \\ [vk]) vk party referenceScriptsUTxO
+              idleOnChainHeadState networkId (cardanoKeys \\ [vk]) vk party scriptRegistry
         , recordedAt = AtStart
         }
   res <-
@@ -192,7 +188,6 @@ withDirectChain tracer networkId iocp socketPath keyPair party cardanoKeys point
           action $
             mkChain
               tracer
-              hydraScriptsTxId
               (queryTimeHandle networkId socketPath)
               cardanoKeys
               wallet
