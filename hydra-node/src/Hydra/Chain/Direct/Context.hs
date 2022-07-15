@@ -5,7 +5,6 @@ module Hydra.Chain.Direct.Context where
 
 import Hydra.Prelude
 
-import qualified Cardano.Api.UTxO as UTxO
 import Data.List ((\\))
 import Hydra.Cardano.Api (
   NetworkId (..),
@@ -23,6 +22,7 @@ import Hydra.Cardano.Api (
   pattern ReferenceScript,
  )
 import Hydra.Chain (HeadParameters (..), OnChainTx (..))
+import Hydra.Chain.Direct.ScriptRegistry (ScriptRegistry (..))
 import Hydra.Chain.Direct.State (
   HeadStateKind (..),
   ObserveTx,
@@ -73,17 +73,19 @@ ctxHeadParameters ctx@HydraContext{ctxContestationPeriod} =
 -- Generators
 --
 
-genReferenceScripts :: Gen UTxO
-genReferenceScripts = do
+genScriptRegistry :: Gen ScriptRegistry
+genScriptRegistry = do
   txId <- arbitrary
   txOut <- genTxOutAdaOnly
   pure $
-    UTxO.singleton
-      ( TxIn txId (TxIx 0)
-      , txOut
-          { txOutReferenceScript = initialScriptRef
-          }
-      )
+    ScriptRegistry
+      { initialReference =
+          ( TxIn txId (TxIx 0)
+          , txOut
+              { txOutReferenceScript = initialScriptRef
+              }
+          )
+      }
  where
   initialScriptRef =
     ReferenceScript $
@@ -119,8 +121,8 @@ genStIdle ctx@HydraContext{ctxVerificationKeys, ctxNetworkId} = do
   ownParty <- elements (ctxParties ctx)
   ownVerificationKey <- elements ctxVerificationKeys
   let peerVerificationKeys = ctxVerificationKeys \\ [ownVerificationKey]
-  referenceScriptsUTxO <- genReferenceScripts
-  pure $ idleOnChainHeadState ctxNetworkId peerVerificationKeys ownVerificationKey ownParty referenceScriptsUTxO
+  scriptRegistry <- genScriptRegistry
+  pure $ idleOnChainHeadState ctxNetworkId peerVerificationKeys ownVerificationKey ownParty scriptRegistry
 
 genStInitialized ::
   HydraContext ->
@@ -146,8 +148,8 @@ genCommits ::
 genCommits ctx initTx = do
   forM (zip (ctxVerificationKeys ctx) (ctxParties ctx)) $ \(vk, p) -> do
     let peerVerificationKeys = ctxVerificationKeys ctx \\ [vk]
-    referenceScriptsUTxO <- genReferenceScripts
-    let stIdle = idleOnChainHeadState (ctxNetworkId ctx) peerVerificationKeys vk p referenceScriptsUTxO
+    scriptRegistry <- genScriptRegistry
+    let stIdle = idleOnChainHeadState (ctxNetworkId ctx) peerVerificationKeys vk p scriptRegistry
     let (_, stInitialized) = unsafeObserveTx @_ @ 'StInitialized initTx stIdle
     utxo <- genCommit
     pure $ unsafeCommit utxo stInitialized
