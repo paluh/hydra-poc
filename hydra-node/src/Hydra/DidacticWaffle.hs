@@ -1,6 +1,6 @@
 module Hydra.DidacticWaffle where
 
-import Hydra.Prelude
+import Hydra.Prelude hiding (State)
 
 data UTxOSet = UTxOSet
   deriving (Eq, Show)
@@ -17,25 +17,31 @@ data State
 -- () -> Initial
 -- Final -> ()
 
-data Params = Params
-
 -- data Machine = Machine { state :: State }
 
-initialize :: Params -> State
-initialize = undefined
+initialize :: State
+initialize = Initial
 
-commit :: UTxO -> State -> State
+abort :: State -> State
+abort = \case
+  Initial -> Final
+  s -> s
+
+commit {- UTxO -> -} :: State -> State
 commit = undefined
 
 -- Maybe something to collect here?
 collect :: State -> State
-collect = undefined
+collect = \case
+  Initial -> Open
+  s -> s
 
 close :: State -> State
-close = undefined
+close = \case
+  Open -> Closed
+  s -> s
 
 fanout :: State -> State
-fanout = undefined
-
-abort :: State -> State
-abort = undefined
+fanout = \case
+  Closed -> Final
+  s -> s
