@@ -177,6 +177,7 @@ library
     , typed-protocols
     , typed-protocols-cborg
     , typed-protocols-examples
+    , unordered-containers
     , websockets
 
   ghc-options:     -haddock
@@ -336,6 +337,7 @@ test-suite tests
     , text
     , time
     , typed-protocols-examples
+    , unordered-containers
     , websockets
     , yaml
 
