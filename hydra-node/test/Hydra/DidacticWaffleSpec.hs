@@ -17,3 +17,9 @@ spec = do
     let st1 = initialize & collect
         st2 = close st1 & fanout
      in conjoin [st1 === Open, st2 === Final]
+  it "can't collect before every party committed" $
+    ( initialize (HashSet.fromList [Alice, Bob])
+        & commit Alice
+        & collect
+    )
+      === Initial

@@ -1,39 +1,37 @@
 module Hydra.DidacticWaffle where
 
 import Hydra.Prelude hiding (State)
+import Data.HashSet (HashSet)
 
 data UTxOSet = UTxOSet
   deriving (Eq, Show)
 
--- {utxos :: UTxOSet}
-
 data State
-  = Initial
+  = Initial { committed :: HashSet Party, participants :: HashSet Party }
   | Open
   | Closed
   | Final
   deriving (Eq, Show)
 
--- () -> Initial
--- Final -> ()
+data Party = Alice
+           | Bob
+  deriving (Eq, Show)
 
--- data Machine = Machine { state :: State }
-
-initialize :: State
-initialize = Initial
+initialize :: HashSet Party -> State
+initialize participants = Initial { committed = mempty, participants }
 
 abort :: State -> State
 abort = \case
-  Initial -> Final
+  Initial {} -> Final
   s -> s
 
-commit {- UTxO -> -} :: State -> State
-commit = undefined
+commit :: Party -> State -> State
+commit p = const
 
 -- Maybe something to collect here?
 collect :: State -> State
 collect = \case
-  Initial -> Open
+  Initial { committed, participants } | committed == participants -> Open
   s -> s
 
 close :: State -> State
