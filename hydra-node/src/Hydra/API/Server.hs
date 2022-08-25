@@ -32,6 +32,7 @@ import Network.WebSockets (
   withPingThread,
  )
 import Test.QuickCheck (oneof)
+import Cardano.Binary (decodeAnnotator, Annotator)
 
 data APIServerLog
   = APIServerStarted {listeningPort :: PortNumber}
@@ -66,6 +67,7 @@ type ServerComponent tx m a = ServerCallback tx m -> (Server tx m -> m a) -> m a
 
 withAPIServer ::
   IsTx tx =>
+  FromCBOR (Annotator (ClientInput tx)) =>
   IP ->
   PortNumber ->
   Party ->
@@ -85,6 +87,7 @@ withAPIServer host port party tracer callback action = do
 
 runAPIServer ::
   forall tx.
+  FromCBOR (Annotator (ClientInput tx)) =>
   IsTx tx =>
   IP ->
   PortNumber ->
@@ -120,7 +123,8 @@ runAPIServer host port tracer history callback responseChannel = do
 
   receiveInputs con = forever $ do
     msg <- receiveData con
-    case Aeson.eitherDecode msg of
+
+    case decodeAnnotator "ClientInput" fromCBOR msg of
       Right input -> do
         traceWith tracer (APIInputReceived $ toJSON input)
         callback input
@@ -128,8 +132,8 @@ runAPIServer host port tracer history callback responseChannel = do
         -- XXX(AB): toStrict might be problematic as it implies consuming the full
         -- message to memory
         let clientInput = decodeUtf8With lenientDecode $ toStrict msg
-        sendTextData con $ Aeson.encode $ InvalidInput @tx e clientInput
-        traceWith tracer (APIInvalidInput e clientInput)
+        sendTextData con $ Aeson.encode $ InvalidInput @tx (show e) clientInput
+        traceWith tracer (APIInvalidInput (show e) clientInput)
 
   forwardHistory con = do
     hist <- STM.atomically (readTVar history)
